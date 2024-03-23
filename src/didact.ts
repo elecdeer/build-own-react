@@ -2,6 +2,8 @@ import { updateDom } from "./dom";
 import { reconcileChildren } from "./reconcile";
 
 export declare namespace JSX {
+	interface Element extends DidactElement {}
+
 	interface IntrinsicElements {
 		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 		[elemName: string]: any;
@@ -9,7 +11,7 @@ export declare namespace JSX {
 }
 
 export type DidactElement = {
-	type: "TEXT_ELEMENT" | keyof HTMLElementTagNameMap;
+	type: Fiber["type"];
 	props: {
 		children: DidactElement[];
 		[key: string | number | symbol]: unknown;
@@ -26,9 +28,12 @@ export type DidactNode =
 	| null
 	| undefined;
 
-export type Fiber = {
-	type: "TEXT_ELEMENT" | keyof HTMLElementTagNameMap;
-	dom: HTMLElement | Text | null;
+export type Fiber =
+	| FiberFunctionComponent
+	| FiberHostComponent
+	| FiberTextElement;
+
+type FiberBase = {
 	props: {
 		children: DidactElement[];
 		[key: string | number | symbol]: unknown;
@@ -38,6 +43,21 @@ export type Fiber = {
 	sibling: Fiber | null;
 	alternate: Fiber | null;
 	effectTag?: "PLACEMENT" | "UPDATE" | "DELETION";
+};
+
+export type FiberFunctionComponent = FiberBase & {
+	type: (props: FiberBase["props"]) => JSX.Element;
+	dom: null;
+};
+
+export type FiberHostComponent = FiberBase & {
+	type: keyof HTMLElementTagNameMap;
+	dom: HTMLElement | null;
+};
+
+export type FiberTextElement = FiberBase & {
+	type: "TEXT_ELEMENT";
+	dom: Text | null;
 };
 
 export function createElement(
@@ -98,7 +118,14 @@ function commitRoot() {
 function commitWork(fiber: Fiber | null) {
 	if (!fiber) return;
 
-	const domParent = fiber.parent?.dom ?? null;
+	const domParent = (() => {
+		// FunctionComponentでないFiber、つまりdomを持つFiberまで遡る
+		let parentFiber = fiber.parent;
+		while (!parentFiber?.dom) {
+			parentFiber = parentFiber?.parent ?? null;
+		}
+		return parentFiber.dom;
+	})();
 
 	if (fiber.dom !== null) {
 		console.log("commitWork", fiber.dom);
@@ -117,7 +144,7 @@ function commitWork(fiber: Fiber | null) {
 	commitWork(fiber.sibling);
 }
 
-export function createDom(fiber: Fiber) {
+export function createDom(fiber: FiberTextElement | FiberHostComponent) {
 	const dom =
 		fiber.type === "TEXT_ELEMENT"
 			? document.createTextNode("")
@@ -145,20 +172,14 @@ function workLoop(deadline: IdleDeadline) {
 requestIdleCallback(workLoop);
 
 function performUnitOfWork(fiber: Fiber): Fiber | null {
-	// add dom node
-	if (!fiber.dom) {
-		fiber.dom = createDom(fiber);
+	if (fiber.type instanceof Function) {
+		updateFunctionComponent(fiber as FiberFunctionComponent);
+	} else {
+		updateHostComponent(fiber as FiberHostComponent | FiberTextElement);
 	}
 
-	// create new fibers
-	const elements = fiber.props.children;
-	reconcileChildren(fiber, elements, {
-		deletions,
-		wipFiber: fiber,
-	});
-
-	// return next unit of work
 	if (fiber.child) {
+		// return next unit of work
 		return fiber.child;
 	}
 	let nextFiber: Fiber | null = fiber;
@@ -169,4 +190,25 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
 		nextFiber = nextFiber.parent;
 	}
 	return null;
+}
+
+function updateFunctionComponent(fiber: FiberFunctionComponent): void {
+	const children = [fiber.type(fiber.props)];
+	reconcileChildren(fiber, children, {
+		deletions,
+		wipFiber: fiber,
+	});
+}
+
+function updateHostComponent(
+	fiber: FiberHostComponent | FiberTextElement,
+): void {
+	if (!fiber.dom) {
+		fiber.dom = createDom(fiber);
+	}
+
+	reconcileChildren(fiber, fiber.props.children, {
+		deletions,
+		wipFiber: fiber,
+	});
 }

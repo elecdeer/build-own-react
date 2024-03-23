@@ -8,6 +8,18 @@ const updateValue = (e: any) => {
 	rerender(e.target.value);
 };
 
+const Hello = ({
+	name,
+}: {
+	name: string;
+}) => {
+	return (
+		<div>
+			<h1>Hello {name}!</h1>
+		</div>
+	);
+};
+
 const rerender = (value: string) => {
 	console.log(
 		`=== rerendering with value:${value} ==============================================`,
@@ -18,7 +30,7 @@ const rerender = (value: string) => {
 			<br />
 			<input onInput={updateValue} value={value} />
 			<br />
-			<b>{value}</b>
+			<Hello name={value} />
 		</div>
 	);
 

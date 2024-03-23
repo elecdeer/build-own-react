@@ -22,22 +22,22 @@ export function reconcileChildren(
 			// update the node
 			newFiber = {
 				// biome-ignore lint/style/noNonNullAssertion: sameTypeでチェック済
-				type: oldFiber!.type,
-				props: element.props,
-				// biome-ignore lint/style/noNonNullAssertion: sameTypeでチェック済
-				dom: oldFiber!.dom,
-				parent: wipFiber,
-				alternate: oldFiber,
-				effectTag: "UPDATE",
-				child: null,
-				sibling: null,
+				...oldFiber!,
+				...({
+					props: element.props,
+					parent: wipFiber,
+					alternate: oldFiber,
+					effectTag: "UPDATE",
+					child: null,
+					sibling: null,
+				} as Omit<Fiber, "type" | "dom">),
 			} satisfies Fiber;
 		}
 
 		if (element && !sameType) {
 			// add new node
 			newFiber = {
-				type: element.type,
+				type: element.type satisfies Fiber["type"],
 				props: element.props,
 				parent: wipFiber,
 				dom: null, // performUnitOfWorkで後から作られる
@@ -45,7 +45,7 @@ export function reconcileChildren(
 				effectTag: "PLACEMENT",
 				child: null,
 				sibling: null,
-			} satisfies Fiber;
+			} as Fiber;
 		}
 
 		if (oldFiber && !sameType) {
