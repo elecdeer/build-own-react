@@ -1,16 +1,10 @@
 import * as Didact from "./didact";
-//
 
-// @jsx Didact.createElement
 const element = (
-  // @ts-expect-error
-  <div id="foo">
-    {/* @ts-expect-error */}
-    <a href="./">bar</a>
-    {/* @ts-expect-error */}
-    <b />
-    {/* @ts-expect-error */}
-  </div>
+	<div id="foo">
+		<a href="./">bar</a>
+		<b>bold!</b>
+	</div>
 );
 
 // const element = Didact.createElement(
