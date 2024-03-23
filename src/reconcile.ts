@@ -5,7 +5,6 @@ export function reconcileChildren(
 	elements: DidactElement[],
 	ctx: {
 		deletions: Fiber[];
-		wipFiber: Fiber;
 	},
 ) {
 	let index = 0;
@@ -60,7 +59,7 @@ export function reconcileChildren(
 		}
 
 		if (index === 0) {
-			ctx.wipFiber.child = newFiber;
+			wipFiber.child = newFiber;
 		} else {
 			if (prevSibling) {
 				prevSibling.sibling = newFiber;

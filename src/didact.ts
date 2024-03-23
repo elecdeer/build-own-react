@@ -43,6 +43,7 @@ type FiberBase = {
 	sibling: Fiber | null;
 	alternate: Fiber | null;
 	effectTag?: "PLACEMENT" | "UPDATE" | "DELETION";
+	hooks?: unknown[];
 };
 
 export type FiberFunctionComponent = FiberBase & {
@@ -128,14 +129,16 @@ function commitWork(fiber: Fiber | null) {
 	})();
 
 	if (fiber.dom !== null) {
-		console.log("commitWork", fiber.dom);
 		if (fiber.effectTag === "PLACEMENT") {
+			console.log("addNode", fiber.dom);
 			domParent?.appendChild(fiber.dom);
 		}
 		if (fiber.effectTag === "UPDATE") {
+			console.log("updateNode", fiber.dom);
 			updateDom(fiber.dom, fiber.alternate?.props ?? {}, fiber.props);
 		}
 		if (fiber.effectTag === "DELETION") {
+			console.log("removeNode", fiber.dom);
 			domParent?.removeChild(fiber.dom);
 		}
 	}
@@ -192,11 +195,17 @@ function performUnitOfWork(fiber: Fiber): Fiber | null {
 	return null;
 }
 
+let wipFiber: FiberFunctionComponent | null = null;
+let hookIndex = 0;
+
 function updateFunctionComponent(fiber: FiberFunctionComponent): void {
+	wipFiber = fiber;
+	hookIndex = 0;
+	wipFiber.hooks = [];
+
 	const children = [fiber.type(fiber.props)];
 	reconcileChildren(fiber, children, {
 		deletions,
-		wipFiber: fiber,
 	});
 }
 
@@ -209,6 +218,43 @@ function updateHostComponent(
 
 	reconcileChildren(fiber, fiber.props.children, {
 		deletions,
-		wipFiber: fiber,
 	});
+}
+
+export function useState<T>(initial: T): [T, (action: (prev: T) => T) => void] {
+	console.log("useState");
+	type UseStateHook = {
+		state: T;
+		queue: ((value: T) => T)[];
+	};
+
+	const oldHook = wipFiber?.alternate?.hooks?.[hookIndex] as
+		| UseStateHook
+		| undefined;
+	const hook: UseStateHook = {
+		state: oldHook ? oldHook.state : initial,
+		queue: [],
+	};
+
+	console.log("hook", hook);
+
+	const actions = oldHook?.queue ?? [];
+	actions.forEach((action) => {
+		hook.state = action(hook.state);
+	});
+
+	const setState = (action: (prev: T) => T) => {
+		hook.queue.push(action);
+		wipRoot = {
+			dom: currentRoot?.dom,
+			props: currentRoot?.props,
+			alternate: currentRoot,
+		} as Fiber; //TODO: fix this
+		nextUnitOfWork = wipRoot;
+		deletions = [];
+	};
+
+	wipFiber?.hooks?.push(hook);
+	hookIndex++;
+	return [hook.state, setState];
 }

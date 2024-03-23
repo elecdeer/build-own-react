@@ -3,11 +3,6 @@ import * as Didact from "./didact";
 const container = document.getElementById("root");
 if (container === null) throw new Error("root element not found");
 
-const updateValue = (e: any) => {
-	console.log("updateValue", e.target.value);
-	rerender(e.target.value);
-};
-
 const Hello = ({
 	name,
 }: {
@@ -20,24 +15,36 @@ const Hello = ({
 	);
 };
 
-const rerender = (value: string) => {
-	console.log(
-		`=== rerendering with value:${value} ==============================================`,
-	);
-	const element = (
-		<div id="foo">
-			<a href="./">bar</a>
-			<br />
+const App = () => {
+	const [value, setValue] = Didact.useState("world");
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	const updateValue = (e: any) => {
+		console.log("updateValue", e.target.value);
+		setValue((prev) => {
+			console.log("setValue callback", prev, "=>", e.target.value);
+			return e.target.value;
+		});
+	};
+
+	return (
+		<div>
 			<input onInput={updateValue} value={value} />
 			<br />
 			<Hello name={value} />
 		</div>
 	);
-
-	Didact.render(element, container);
 };
 
-rerender("hello");
+const element = (
+	<div id="foo">
+		<a href="./">bar</a>
+		<br />
+
+		<App />
+	</div>
+);
+
+Didact.render(element, container);
 
 // const element = Didact.createElement(
 //   "div",
