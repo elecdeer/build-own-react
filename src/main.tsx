@@ -9,7 +9,9 @@ const updateValue = (e: any) => {
 };
 
 const rerender = (value: string) => {
-	console.log("rerendering with value", value);
+	console.log(
+		`=== rerendering with value:${value} ==============================================`,
+	);
 	const element = (
 		<div id="foo">
 			<a href="./">bar</a>
